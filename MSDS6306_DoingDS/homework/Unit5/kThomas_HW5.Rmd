@@ -1,0 +1,102 @@
+---
+title: "KThomas_HW5"
+author: "Kyle Thomas"
+date: "September 27, 2017"
+output: html_document
+---
+
+# Homework 5
+
+## Question 1
+
+
+```{r}
+#set the path
+setwd("C:\\Users\\kthomas\\Documents\\SMU\\msds6306 - doing data science\\unit 5\\homework\\Download")
+
+#read in the data to a data frame
+dfNames= read.table("yob2016.txt", sep = ";")#, col.names = c("First", "Gender", "Count"))
+colnames(dfNames) = c("Name", "Gender", "Count")
+```
+
+Lets look a summary of the data, and use the str funciton to see its strucutre and what the data looks like.
+```{r}
+#structure of the data
+summary(dfNames)
+str(dfNames)
+```
+
+There is a name with incorrect data. Noteably, the name contains three "y"s at the end of a name. Lets use RegEx to find it. Then remove it from the data frame. Save the results in a new object called "y2016".
+```{r}
+repeatName = dfNames[grep("yyy$", dfNames$Name),]
+repeatName
+```
+
+The repeat name occure in row 212, so we will drop this observation
+```{r}
+repeatNum = which(dfNames$Name == repeatName$Name[1])
+y2016 = dfNames[-212,]
+```
+
+## Question 2
+Read in the names from 2015. The seperator has changed to a commma.
+```{r}
+y2015= read.table("yob2015.txt", sep = ",", col.names = c("Name", "Gender", "Count"))
+```
+
+Display the last 10 rows in the dataframe. What is interesting about the data?
+```{r}
+tail(y2015, 10)
+```
+What is interesting about this data is that they are all boys names that were give out exactly five times starting with the letter Z. Seems unlikely.
+
+Now Merge the data to dataframe y2016 by name column.
+```{r}
+#lets see if there is any 0 count names
+x = sapply(y2015$Count, is.nan)
+paste0("there are ",sum(x), " names that had N/A data")
+
+y = sapply(y2016$Count, is.nan)
+paste0("there are ",sum(y), " names that had N/A data")
+
+#Is there any missing gender variables
+gen15 = sapply(y2015$Gender, is.na)
+paste0("there are ",sum(gen15), " names that had N/A data")
+
+gen16 = sapply(y2016$Gender, is.na)
+paste0("there are ",sum(gen16), " names that had N/A data")
+
+
+#merge the data
+final = merge(y2015, y2016, by="Name")
+#final[duplicated(final$Name),]
+```
+
+## Question 3
+
+What are the total number of children given the names listed in the dataframe in the years 2015 and 2016?
+```{r}
+final["Total"] = final$Count.x + final$Count.y
+#there are lots of repeat numbers each year... are the data sets the same? Does not look like it.
+#final["same"] = final$Count.x == final$Count.y
+#final = final[-7]
+```
+
+What are the 10 most popular names?
+```{r}
+ordered = final[order(final$Total, decreasing = TRUE),]
+head(ordered,10)
+```
+
+What are the 10 most popular girl names?
+```{r}
+girls = final[final$Gender.x == "F" & final$Gender.y == "F",]
+girl = head(girls[order(girls$Total, decreasing = TRUE),],10)
+girl[c("Name", "Total")]
+write.csv(girl[c("Name", "Total")], "itsagirl.csv", row.names = FALSE)
+```
+
+
+## Question 4
+
+My work can be found at: https://github.com/khthomas/SMU_MSDS/tree/master/MSDS6306_DoingDS/homework/Unit5  
