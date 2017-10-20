@@ -1,0 +1,24 @@
+#Unit 5 Part 9
+library(repmis)
+setwd("~/SMU/MSDS6306 - Doing Data Science/Unit 5")
+#Download data file (not specified in intstructions) using direct from internet tools in R
+DataURL =  "https://raw.githubusercontent.com/christophergandrud/EIUCrisesMeasure/master/data/FinStress.csv"
+EIUCrisesMeasure = source_data(DataURL, sep=",", header=TRUE)
+
+#Date of Download
+now = date()
+paste0("Data was downloaded at: ",now)
+#data dimensions
+dim(EIUCrisesMeasure)
+
+#Variable names
+n = names(EIUCrisesMeasure)
+paste0("Variable names in data set are: ")
+paste0(n)
+
+#variable types
+types = sapply(EIUCrisesMeasure, class)
+
+
+
+
