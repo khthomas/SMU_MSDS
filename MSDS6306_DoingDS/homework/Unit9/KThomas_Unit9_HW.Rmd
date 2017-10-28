@@ -1,0 +1,138 @@
+---
+title: "Unit 9 - Homework"
+author: "Kyle Thomas"
+date: "October 28, 2017"
+output: html_document
+---
+# Harry Potter and the Deathly Hallows: Part 2
+# Web Scrapping Exercise
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(xml2)
+library(XML)
+library(htmltools)
+library(dplyr)
+library(rvest)
+library(selectr)
+library(tidyr)
+library(kableExtra)
+library(knitr)
+library(ggplot2)
+```
+
+I scrapped the webpage using rvest and put the results into a data frame. The data frame contained several 
+columns that were not useful. The first column was simply empty, and the third column contained ellipses. 
+These columns were dropped from the dataframe. The names of the columns were changed to Actor and Character.
+Finally, the blank first row is removed from the dataframe.
+```{r init}
+link = "http://www.imdb.com/title/tt1201607/fullcredits?ref_=tt_ql_1"
+page = read_html(link)
+#allTables = html_nodes(page, "table")
+#cast2 = html_table(allTables[3], fill=TRUE)
+
+#experimenting with forward pipe
+castlist = page %>%
+  html_nodes("table") %>%
+  .[3] %>%
+  html_table(fill=TRUE)
+
+#Using the forward pipe to make a dataframe 
+Cast = castlist %>%
+  data.frame() %>%
+  .[-1,-c(1,3)] #drop the blank first row and the useless columns
+  
+#rename
+names(Cast) = c("Actor","Character")
+
+```
+
+After examining the Cast Dataframe it became apparent that some the data frame needed cleaning. First, there 
+was an observation called "Rest of the cast listed alphabetically". This row was removed. Also, Mr. Warwick's 
+character line was cleaned up.
+
+```{r cleaning}
+#Charning Mr. Warwick's character
+Cast[11,2] = "Griphook//Professor Filius Flitwick"
+
+#remove "Rest of the cast listed alphabetically" row
+Cast = Cast[-c(92:92),]
+
+```
+
+Split the actor's names into two columns (one for first and last name). Show the first 10 rows of final output.
+```{r split_names}
+Cast = separate(Cast, Actor, into=c("FirstName", "Surname"), sep="[ ](?=[^ ]+$)")
+
+#I have some wierd problems with kable very similar to: #https://stackoverflow.com/questions/46820236/first-column-outside-of-kable-table-with-kable-styling
+kable(head(Cast,10), "html", align="l", row.names = FALSE) #%>% 
+  # column_spec(1, width="1in") %>% 
+  # column_spec(2, width="1in") %>%
+  # column_spec(3, width="3in")
+```
+
+# NBA Shooting Statistics Web Scrapping Exercise
+```{r sportball}
+#Get the data and figure out which node is needed
+espnLink = "http://www.espn.com/nba/team/stats/_/name/sa/san-antonio-spurs"
+espnhtml = read_html(espnLink)
+sportsTable = html_nodes(espnhtml, "table")
+
+#make the dataframe
+dfshooting = sportsTable %>%
+  .[2] %>%
+  html_table(fill=TRUE) %>%
+  data.frame()
+
+#make the columns a meaningful name and drop out rows that are useless
+names(dfshooting) = dfshooting[2,]
+dfshooting = dfshooting[-c(1,2),]
+
+#seperate names from position
+dfshooting = separate(dfshooting, PLAYER, into=c("Name", "Position"), sep=", ")
+n = names(dfshooting)
+
+#what are the data types of each column?
+sapply(dfshooting, class)
+
+#change into float
+dfshooting = data.frame(lapply(dfshooting, function(x) type.convert(as.character(x), as.is=TRUE)))
+sapply(dfshooting, class)
+#names(dfshooting) = n #rename again due to revious funciton stripping out names
+
+#graph field goals percentage per game
+ggplot(data=dfshooting, aes(x=Name, y=FG., group=Position)) + 
+  geom_col(aes(color=Position, fill=Position)) + 
+  coord_flip() + 
+  labs(title="San Antonio Spurs: Field Goals Percentage Per Game", x="Player", y="Average Field Goal Percentage")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
