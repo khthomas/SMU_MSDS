@@ -1,0 +1,118 @@
+---
+title: "Homework_10"
+author: "Kyle Thomas"
+date: "November 3, 2017"
+output: html_document
+---
+
+```{r setup, include=TRUE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
+#install.packages("sqldf")
+library(sqldf)
+library(knitr)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(plyr)
+
+```
+
+The data set used for this evaluation comes from the National Mental Health Services Survey (NMHSS). The goal of this analysis is to determine what areas within the United States need additional VA Hospitals. Specifically, which states are in the most need of VA Hospitals that
+offer mental health services.
+```{r}
+setwd("C:/Users/kthomas/Documents/SMU/MSDS6306 - Doing Data Science/Unit_10/Homework_Data/")
+
+load("N-MHSS-2015-DS0001-data-r.rda")
+
+stateSize = read.csv("statesize.csv")
+
+#make a new data frame that is easier to call in code
+df = mh2015_puf
+```
+
+The states listed in this document are shown below. In total there are 55 unique state Abbreviations. This includes the District of Columbia and US territories. It should be noted that this is a survey of all hospitals. This analysis is focusing on VA hospitals. As a result, the data will be filtered down to only VA hospitals in the mainland United States. 
+```{r}
+uniq = trimws(as.character(unique(df$LST)))
+numStates = length(unique(df$LST))
+states = state.abb
+
+#remove AK and HI from list
+states = states[-c(2,11)]
+states = append(states, "DC")
+
+#subset on VAMC first then on mainland states States.
+dfVA = df[grep("VAMC",df$FACILITYTYPE),]
+dfFinal = dfVA[trimws(dfVA$LST) %in% states,]
+
+#create a ggbarplot, need to work on spacing of state letters
+# Also labels suck and no title
+ggplot(dfFinal, aes(x=LST)) + 
+  geom_bar(stat = "count", aes(fill=LST), colour="black") +
+ # coord_flip() +
+  guides(fill=FALSE)+
+  ggtitle("Number of VA Hospitals by State in the Mainland US")+
+  ylab("Number of Hospitals") +
+  xlab("State") + 
+  theme(plot.title = element_text(hjust = 0.5))  + 
+  theme(axis.text.x = element_text(angle=90, hjust=1))
+```
+
+
+The data held within the column "LST" contains state data, specifically the a respective hospital's state abbreviation. The code below shows that there is a significant amount of white space data concatenated onto the end of each state abbreviation. In order to continue the analysis, the white space must be removed so that another data set that contains information on state size can be merged with the master data set.
+
+The data set was then simplified so that only state name, size, region, and number of hospitals remained. Using this information, a new bar chart
+was created that counted the number of VA Hospitals per state per 1,000 square miles in the state. To make the graph easier to read, the states are visually grouped by region. Finally, I identified the 10 states that had the least number of VA hospitals per 1,000 square miles.
+```{r part2A}
+paste(dfFinal$LST)
+dfFinal$LST = trimws(dfFinal$LST)
+
+#Merging Datasets
+colnames(stateSize)[3] = "LST"
+dfMerged = merge(dfFinal, stateSize, by="LST")
+dfMerged["1kSqMiles"] = dfMerged$SqMiles / 1000
+
+##aggregate by state; I used a package called sqldf to get the data in a shape I could use.
+# there is likely a better way to do this, but this is how I got it to work
+simple = dfMerged[c("LST", "SqMiles", "1kSqMiles", "Region", "StateName")]
+SizeAndCount = data.frame(sqldf("Select *, count(LST) FROM simple GROUP BY LST"))
+SizeAndCount["HospitalsPer1K"] = SizeAndCount$count.LST. / SizeAndCount$X1kSqMiles
+
+## plot hospitals per 1K square miles
+ggplot(SizeAndCount, aes(x=reorder(LST, -HospitalsPer1K), y=HospitalsPer1K, group="Region")) + 
+  geom_bar(stat="identity",aes(fill=Region), colour="black") +
+ # coord_flip() +
+  #guides(fill=TRUE)+
+  ggtitle("Number of VA Hospitals by State in the Mainland US per 1000 square miles")+
+  ylab("Number of Hospitals") +
+  xlab("State") + 
+  theme(plot.title = element_text(hjust = 0.5))  + 
+  theme(axis.text.x = element_text(angle=90, hjust=1))
+
+## Lets look at the bottom 5 served states
+head(SizeAndCount[order(SizeAndCount$HospitalsPer1K),],10)
+```
+
+
+Based on this data the two most under served regions in the contiguous United States are the West and Midwest respectively. The bottom five states with the fewest VA hospitals per 1,000 square miles are Montana, Wyoming, Utah, Kansas, and New Mexico. As a result I would focus my efforts on these areas. Additionally, I would also seek out veteran population information broken out by state. Once that information is obtained, we can identify the least served states with the highest populations. It would be in these states that I would recommend building a new VA hospital.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
