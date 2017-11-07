@@ -1,0 +1,74 @@
+---
+title: "Unit 11 S&P500"
+author: "Kyle Thomas"
+date: "November 6, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r code}
+#install.packages("fpp")
+#install.packages("tseries")
+library(fpp)
+library(tseries)
+
+#Example of 11.5 with the S&P 500
+
+#F#Financial Series
+SNPdata = get.hist.quote('^gspc', quote="Close")
+
+#the lag function shifts data back by a given number of observations.
+SNPret = log(lag(SNPdata)) - log(SNPdata)
+#sqrt 250 is the number of trading days in a year, times 100 to get a percent
+SNPvol = sd(SNPret) * sqrt(250) * 100
+
+## volatility get with contuous lookback window
+
+vol = function(d, logrets) {
+  #d is weight (10 would be 1/10)
+  #var is variance
+  #lam is lambda
+  #multiplies lambda (exponential value weight) 
+  var = 0
+  lam = 0
+  varlist = c()
+  for (r in logrets) {
+    lam = lam*(1-1/d) + 1
+    var = (1-1/lam)*var + (1/lam)*r^2
+    varlist = c(varlist,var)
+  }
+  sqrt(varlist)
+}
+
+# recreate Figure 6.12 in the text on page 155
+
+volest = vol(10, SNPret) #weight is 0.9 (1 - 1/10)
+volest2 = vol(30, SNPret)
+volest3 = vol(100, SNPret) 
+
+plot(volest,type = "l")
+lines(volest2,type = "l", col = "red")
+lines(volest3,type = "l", col="blue")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
