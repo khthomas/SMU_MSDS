@@ -1,0 +1,175 @@
+---
+title: "Homework_11"
+author: "Kyle Thomas"
+date: "November 19, 2017"
+output: html_document
+---
+
+```{r setup, include=TRUE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dygraphs)
+library(tibbletime)
+library(fpp)
+library(tseries)
+library(dplyr)
+library(xts)
+library(zoo)
+library(lubridate)
+library(ggplot2)
+
+# install.packages("decompose")
+```
+
+
+First we are going to look at the raw DAX data. No transformations or normalization methods have been conducted on the data. The October 27, 1997 "mini-crash has been identified by the vertilce dashed red line. Additionally, an organge dash line was added to seperate pre and post 1997 data.
+```{r part1, include=TRUE}
+#first look at the EU Stock Market data (want DAX)
+DAX = EuStockMarkets[,1]
+# plot(DAX, main = "Closing Value of DAX Over Time", ylab = "DAX Closing Value", col="blue")
+# abline(v = as.ts(1997), col="red", lwd = 2)
+
+
+#Fancy graphing
+holding = as.zoo(DAX)
+holding.xts = xts(holding, date_decimal(index(holding)))
+dygraph(holding.xts, main = "DAX Closing Value (Raw Data)", xlab = "Time", ylab = "Closing Value") %>%
+  dyEvent("1997-01-01", color = "orange", label = "1997") %>%
+  dyEvent("1997-10-27", color = "red", label = "Mini-crash  of October 27") %>%
+  dyOptions(colors = c("blue")) %>%
+  dyAxis("x", drawGrid = FALSE) %>%
+  dySeries("x", label = "DAX")
+```
+
+
+
+Now I will decompose the data into its components (trend, sesonality, and random) into a multiplicative model.
+
+```{r decomp}
+#The trend data.
+daxw = window(DAX, start = 1991, 1998)
+plot(DAX, ylab = "Closing Val", xlab = "Year")
+fit1 = ses(daxw, alpha= 0.2, initial = "simple", h=365)
+lines(fitted(fit1), col="blue", type="o")
+lines(fit1$mean, col="red", type="o")
+abline(v = as.ts(1997), col="red", lwd = 2)
+title("Simple Exponential Smoothing")
+
+
+#holts linear trend method
+plot(DAX, ylab = "Closing Val", xlab = "Year")
+fith = holt(daxw, initial = "simple",exponential = TRUE, h=365)
+lines(fitted(fith), col="blue", type="o")
+abline(v = as.ts(1997), col="red", lwd = 2)
+title("Holts Linear Method")
+lines(fith$mean, col="red", type="o")
+
+#damped methods
+plot(DAX, ylab = "Closing Val", xlab = "Year")
+fithd = holt(daxw, initial = "simple", exponential = TRUE,damped = TRUE, h=365)
+lines(fitted(fithd), col="blue", type="o")
+abline(v = as.ts(1997), col="red", lwd = 2)
+title("Holts Linear Method with damping")
+lines(fithd$mean, col="red", type="o")
+
+
+# daxhw = window(DAX, start=1991, end = 1995)
+# plot(DAX, ylab = "Closing Val", xlab = "Year")
+# fitseas = hw(daxhw, initial = "simple", seasonal = "multiplicative")
+# lines(fitted(fitseas), col="blue", type="o")
+# title("Seasonal Decomposition")
+# lines(fitseas$mean, col="red", type="o")
+
+# fitseas = stl(DAX, s.window = "periodic")
+# plot(DAX, ylab = "Closing Val", xlab = "Year")
+# lines(fitted(fitseas), col="blue", type="o")
+
+```
+
+
+
+## Question 2 -- Maximum Temperature Prediciton
+
+Predicting temperatures for the next five years. The AICc of the SEs model is 141.5. The AICc of the damped Holt model is 144.5 Based on the AICc values the SES model is the better model.
+
+
+```{r setupQ2, include=TRUE}
+#install.packages("fpp2")
+library(fpp2)
+temp_data = window(maxtemp, start=1990)
+pred_ses = ses(temp_data)
+
+fit1 = ses(temp_data)
+
+
+plot(temp_data, ylab = "Max Temp", xlim=c(1990, 2021), col="black")
+lines(fitted(pred_ses), col="green", type="o")
+lines(pred_ses$mean, col="blue", type="o")
+title("Maximum, Fitted, and Predicted Temperatures using SES")
+legend(x="topleft", c("Data", "Fitted", "Prediction"), col = c("black", "green", "blue"), lwd=c(2,2,2))
+
+pred_ses$model
+
+```
+
+
+```{r q2holt, include = TRUE}
+library(fpp2)
+#Holt's linear method
+temp_data = window(maxtemp, start=1990)
+
+pred_holt = holt(temp_data, initial = "optimal", damped = TRUE)
+
+
+plot(temp_data, ylab = "Max Temp", xlim=c(1990, 2021), col="black")
+lines(fitted(pred_holt), col="green", type="o")
+lines(pred_holt$mean, col="blue", type="o")
+title("Maximum, Fitted, and Predicted Temperatures using Holt's Method")
+legend(x="topleft", c("Data", "Fitted", "Prediction"), col = c("black", "green", "blue"), lwd=c(2,2,2))
+
+pred_holt$model
+
+```
+
+
+## Question 3 -- The Wands Choose the Wizard
+Time series analysis of wands sold at Ollivander's shop.
+
+```{r wands, include=TRUE}
+#setup
+library(xts)
+setwd("~/SMU/MSDS6306 - Doing Data Science/Unit11/Download/")
+df_greg = read.csv("Unit11TimeSeries_Gregorovitch.csv", header = FALSE)
+df_oliv = read.csv("Unit11TimeSeries_Ollivander.csv", header = FALSE)
+
+colnames(df_greg) = c("Date", "Gregorovitch")
+colnames(df_oliv) = c("Date", "Ollivander")
+
+df_greg$Date = as.Date(df_greg$Date, "%m/%d/%Y")
+df_oliv$Date = as.Date(df_oliv$Date, "%m/%d/%Y")
+
+gregXTS = xts(df_greg, order.by = df_greg$Date)
+olivXTS = xts(df_oliv, order.by = df_oliv$Date)
+
+dfSales = cbind(gregXTS, olivXTS)
+dfSales = dfSales[,c(-1,-3)]
+
+dygraph(data = dfSales, xlab = "Year", ylab = "Wand Sales", main = "Wand Sales: Gregorovitch vs Ollivander") %>%
+  dyRangeSelector() %>%
+  dyShading(from = "1995-1-1", to = "1999-1-1", color="red") %>%
+  dyHighlight() %>%
+  dyAnnotation("1995-1-1", text = "A", tooltip = "Voldemort Revived") %>%
+  dyAnnotation("1999-1-1", text = "B", tooltip = "Voldemort Killed")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
