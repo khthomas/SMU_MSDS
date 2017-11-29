@@ -1,5 +1,5 @@
 library(ggplot2)
-
+library(readr)
 
 #import data
 all_home_data<- read_csv("C:/Users/student/Desktop/IntroToStats/13_14_Project/train (1) (1).csv")
@@ -28,6 +28,11 @@ hist(three_neighborhoods_clean$GrLivArea[three_neighborhoods_clean$Neighborhood=
 hist(three_neighborhoods_clean$GrLivArea[three_neighborhoods_clean$Neighborhood=="Edwards"],main="Edwards Only")
 hist(three_neighborhoods_clean$GrLivArea[three_neighborhoods_clean$Neighborhood=="NAmes"],main="NAmes Only")
 
+#Log of Square Feet
+three_neighborhoods_clean$LogGrLivArea<-log(three_neighborhoods_clean$GrLivArea)
+hist(three_neighborhoods_clean$LogGrLivArea)
+ggplot(three_neighborhoods_clean,aes(x=LogGrLivArea,y=SalePrice,shape=Neighborhood,color=Neighborhood))+geom_point()+geom_smooth(method='lm')
+
 #Create model. Uses NAmes as the referce neighborhood
-three_neighborhood_model<-lm(SalePrice~GrLivArea+BrkSide+Edwards,data=three_neighborhoods_clean)
+three_neighborhood_model<-lm(SalePrice~LogGrLivArea+BrkSide+Edwards,data=three_neighborhoods_clean)
 summary(three_neighborhood_model)
