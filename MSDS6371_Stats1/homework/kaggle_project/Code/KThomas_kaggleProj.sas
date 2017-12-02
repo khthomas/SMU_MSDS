@@ -87,31 +87,57 @@ Utilities WoodDeckSF YearBuilt YearRemodAdd YrSold;
 Alley BldgType BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 BsmtQual CentralAir Condition1 
 Condition2 Electrical ExterCond Exterior1st Exterior2nd ExterQual Fence FireplaceQu Foundation 
 Functional GarageCond GarageFinish GarageQual GarageType Heating HeatingQC HouseStyle KitchenQual 
-LandContour LandSlope LotConfig LotFrontage LotShape MasVnrType MiscFeature MSZoning Neighborhood 
+LandContour LandSlope LotConfig LotShape MasVnrType MiscFeature MSZoning Neighborhood 
 PavedDrive PoolQC RoofMatl RoofStyle SaleCondition SaleType Street Utilities;
 
 /*Notes on selection process
 
-The stop method may need to be changed.
-The cvmethod=random(5) may need to be changed
+
 */
 
 
-/*1. Forward Selection Model*/
+/*######################Forward Selection Model####################*/
 proc glmselect data=work.train2;
 	class &classvars;
 	model SalePrice = &allvars / selection=Forward(stop=CV) cvmethod=random(5) stats= adjrsq;
 	output out=work.forwardselect p = predict;
 run;
 
-/*Backward Selection*/
-proc glmselect data=work.train2;
-	class &classvars;
-	model SalePrice = &allvars / selection=Backward(stop=CV) cvmethod=random(5) stats= adjrsq;
-	output out=work.backwardselect p = predict;
+/*Run the model created by the forward selection process*/
+proc glm plots=all;
+	Class BsmtQual Neighborhood;
+	model SalePrice = OverallQual GrLivArea Neighborhood BsmtQual / cli clm solution;
 run;
 
-/*Stepwise Selection*/
+/*###################Backward Selection########################*/
+proc glmselect data=work.train3;
+	class &classvars;
+	model SalePrice = &allvars / selection=Backward(stop=CV) cvmethod=random(5) stats= adjrsq;
+	output out=work.backwardselect p = predictf;
+run;
+
+/*Run the selected model created by the backward selection process*/
+
+/*lot frontage has NA data... these need to be replaced*/
+data train3;
+	set work.train2;
+	select (LotFrontage);
+		when ("NA") LotFrontage = .;
+	otherwise;
+	end;
+	new = input(LotFrontage, 2.);
+	drop LotFrontage;
+	rename new=LotFrontage;
+run;
+
+/*run the model*/
+proc glm data=work.train3 plots=all;
+	class Utilities Exterior2nd Exterior1st HouseStyle GarageType;
+	model SalePrice = Utilities TotalBsmtSF LowQualFinSF Exterior2nd Exterior1st HouseStyle GarageType / cli clm solution;
+	output out=work.backwardselect p=predictb;
+run;
+
+/*##########################Stepwise Selection##################*/
 proc glmselect data=work.train2;
 	class &classvars;
 	model SalePrice = &allvars / selection=Stepwise(stop=CV) cvmethod=random(5) stats= adjrsq;
@@ -124,8 +150,13 @@ proc glm data= work.train2 plots=all;
 	class  BldgType CentralAir Foundation GarageType HouseStyle KitchenQual Neighborhood;
 	model SalePrice = BldgType Foundation GarageType HouseStyle KitchenQual Neighborhood
 					   GarageCars LotArea OverallCond OverallQual OverallCond OverallQual
-					    _1stFlrSF _2ndFlrSF / cli solution;
+					    _1stFlrSF _2ndFlrSF GrLivArea/ cli solution;
 	output out = results p = predict;
+run;
+
+proc glm data=work.train3 plots=all;
+	class BldgType Utilities HouseStyle Neighborhood BsmtQual;
+	model SalePrice = OverallQual GrLivArea Neighborhood BsmtQual Utilities HouseStyle OverallQual GarageCars GrLivArea / CLI CLM solution;
 run;
 
 proc means data=work.results;
@@ -140,15 +171,25 @@ data work.my_first_sub;
 	where id > 1460;
 run;
 
-/*Lets try some automatic criteria selection*/
+/*Make datasets to submit to Kaggle*/
+data work.forwardStep;
+	set work.forwardselect;
+	if predict > 0 then SalePrice = Predict;
+	if predict < 0 then SalePrice = 180921.20;
+	keep id SalePrice;
+	where id > 1460;
+run;
 
+data work.backward;
+	set work.backwardselect;
+	if predict > 0 then SalePrice = Predict;
+	if predict < 0 then SalePrice = 180921.20;
+	keep id SalePrice;
+	where id > 1460;
+run;
 
-
-
-
-
-
-
+data work.custom;
+	set work.
 
 
 
